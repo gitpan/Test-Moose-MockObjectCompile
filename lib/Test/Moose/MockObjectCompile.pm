@@ -1,6 +1,6 @@
 package Test::Moose::MockObjectCompile;
 use Moose;
-use Symbol;
+use Class::MOP;
 use Carp;
 
 =head1 Name
@@ -12,17 +12,13 @@ use Carp;
     use Test::Moose::MockObjectCompile;
     use Test::More;
 
-    my $mock = Test::Moose::MockObjectCompile->new({package => 'Foo'});
-    $mock->roles([qw{Some::Role, Some::Other::Role}]);
+    my $mock = Test::Moose::MockObjectCompile->new();
+    $mock->roles([qw{Some::Role Some::Other::Role}]);
     $mock->mock('method1');
     
     lives_ok {$mock->compile} 'Test that roles don't clash and required methods are there';
 
 =head2 ATTRIBUTES
-
-=head2 package
-
-defines a package name for your package. this will be defined on init or an exception will be thrown.
 
 =head2 roles
 
@@ -38,9 +34,8 @@ a package to use as a base (this is a non moose function and I'm not sure it's e
 
 =cut
 
-my $VERSION = '0.1';
+my $VERSION = '0.2';
 
-has 'package' => (is => 'rw', isa => 'Str');
 has 'roles'   => (is => 'rw', isa => 'ArrayRef');
 has 'extend' => (is => 'rw', isa => 'ArrayRef');
 has 'base'    => (is => 'rw', isa => 'Str');
@@ -59,59 +54,45 @@ the constructor for a MockObjectCompile(r) it expects a hashref with the package
 
 =cut
 
-around new => sub {
-    my $next = shift;
-    my ($self, $args) = @_;
-    if (!exists $$args{package}) {
-       croak('Must pass in a package attribute'); 
-    }
-    $next->($self, $args);
-};
-
+# NOTE:
+# This method is actually kind of misnamed but I'm leaving
+# it for now.
 sub _build_code {
     my $self = shift;
-
-    my $pkg = 'package '. $self->package .';';
-    $pkg .= " use base '". $self->base . "';" if $self->base;
-    $pkg .= ' use Moose;';
-    if ($self->roles) {
-        foreach (@{$self->roles}) {
-            $pkg .= " with '$_';";
-        }
-    }
-    if ($self->extend) {
-        foreach (@{$self->extend}) {
-            $pkg .= " extends '$_';";
-        }
-    }
+    
+    my $class = ref($self);
+    
+    # NOTE: we need to store our current inheritance
+    # so we don't blow it away on accident.
+    my @inheritance = $self->meta->superclasses;
+    push @inheritance, (@{$self->extend}) if defined $self->extend;
+    push @inheritance, $self->base if $self->base;
+    $self->meta->superclasses(@inheritance);
+    
     foreach (keys %{$self->{methods}}) {
-        $pkg .= " sub $_ ". $self->{methods}{$_};
+        $self->meta->add_method($_ => $self->{methods}{$_});
     }
-    $pkg .= ' 1;';
+    if (defined $self->roles) {
+        foreach my $Role (@{$self->roles}) {
+            $Role->meta->apply($self);
+        }
+    }
 }
 
 =head2 compile
 
-compiles the module with the definition defined in your roles and extend attributes and whatever you told it to mock.
+simulates a compile of the mocked Moose Object with the definition defined in your roles and extend attributes and whatever you told it to mock.
 
 =cut
 
 sub compile {
     my $self = shift;
-    my $pkg = $self->_build_code();
-    my $return = eval $pkg;
-    die $@ if (!defined $return && $@);
-    return $return;
-}
-
-sub erase {
-    my $self = shift;
-    Symbol::delete_package($self->package);
+    $self->_build_code();
 }
 
 =head2 mock 
 
-mocks a method in your compiled Mock Moose Object. It expects a name for the method and an optional string with the code to define the method code you want to compile. It has to be a string and not a coderef because the string will be compiled into the module and adding the method after compile will not test the compile time work that moose does.
+mocks a method in your compiled Mock Moose Object. It expects a name for the method and an optional coderef.
 
  $mock->mock('method1', '{ push @stuff, $_[1];}');
 
@@ -120,9 +101,10 @@ mocks a method in your compiled Mock Moose Object. It expects a name for the met
 sub mock {
     my $self = shift;
     my ($name, $code) = @_;
-    $code = '{ return 1; }' if (!defined $code);
+    $code = sub { return 1; } if (!defined $code);
     $self->{methods}{$name} = $code;
 }
+
 =head1 NOTES
 
 Some things to keep in mind are:

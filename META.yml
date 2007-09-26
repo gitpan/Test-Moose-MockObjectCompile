@@ -18,8 +18,8 @@ no_index:
     - t
 requires:
   Carp: 0
+  Class::MOP: 0
   Moose: 0
   Moose::Role: 0
-  Symbol: 0
   perl: 5.6.0
-version: 0.1
+version: 0.2

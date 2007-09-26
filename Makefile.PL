@@ -6,11 +6,11 @@ perl_version    '5.006';
 all_from 'lib/Test/Moose/MockObjectCompile.pm';
 
 abstract    'Test-Moose-MockObjectCompile - a Helper module for testing compile time Moose stuff';
-version     '0.1';
+version     '0.2';
 
 requires        'Moose';
 requires        'Moose::Role';
-requires        'Symbol';
+requires        'Class::MOP';
 requires        'Carp';
 
 build_requires        'Test::Moose';
