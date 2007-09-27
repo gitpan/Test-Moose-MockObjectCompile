@@ -28,17 +28,12 @@ a list of roles to apply to your package.
 
 a list of Moose packages you want your package to extend
 
-=head2 base
-
-a package to use as a base (this is a non moose function and I'm not sure it's even needed so it may go away. Let me know if you want it.
-
 =cut
 
-my $VERSION = '0.2';
+our $VERSION = '0.2.1';
 
 has 'roles'   => (is => 'rw', isa => 'ArrayRef');
 has 'extend' => (is => 'rw', isa => 'ArrayRef');
-has 'base'    => (is => 'rw', isa => 'Str');
 
 sub BUILD {
     my $self = shift;
@@ -66,7 +61,6 @@ sub _build_code {
     # so we don't blow it away on accident.
     my @inheritance = $self->meta->superclasses;
     push @inheritance, (@{$self->extend}) if defined $self->extend;
-    push @inheritance, $self->base if $self->base;
     $self->meta->superclasses(@inheritance);
     
     foreach (keys %{$self->{methods}}) {

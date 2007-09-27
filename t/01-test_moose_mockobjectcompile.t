@@ -20,7 +20,7 @@ excludes 'Test::Role1';
 package main;
 
 BEGIN: {
-    plan tests => 11;
+    plan tests => 10;
 
     use_ok('Test::Moose::MockObjectCompile');
 }
@@ -28,7 +28,6 @@ BEGIN: {
 {
     has_attribute_ok('Test::Moose::MockObjectCompile', 'roles');
     has_attribute_ok('Test::Moose::MockObjectCompile', 'extend');
-    has_attribute_ok('Test::Moose::MockObjectCompile', 'base');
     
     can_ok('Test::Moose::MockObjectCompile', qw{_build_code compile mock});
     
